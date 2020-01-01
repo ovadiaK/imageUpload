@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Select</title>
+</head>
+<body>
+<ul>
+    {{range .Images}}
+        <li>
+            <form action="/manipulate/">
+                <input type="submit" value={{.}} name="img">
+            </form>
+        </li>
+    {{end}}
+</ul>
+
+</body>
+</html>
