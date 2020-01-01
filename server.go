@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"html/template"
 	"io"
@@ -46,30 +47,28 @@ func uploadFileHandler(w http.ResponseWriter, r *http.Request) {
 
 	//get a ref to the parsed multipart form
 	m := r.MultipartForm
-	fmt.Println(m)
 
 	//get the *fileheaders
 	files := m.File["myFile"]
-	fmt.Println(files)
 	for i, _ := range files {
 		//for each fileheader, get a handle to the actual file
 		file, err := files[i].Open()
-		defer file.Close()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		buff := make([]byte, 512) // docs tell that it take only first 512 bytes into consideration
-		fmt.Println(file)
-		if _, err = file.Read(buff); err != nil {
-			fmt.Println(err) // do something with that error
+		buf := bytes.NewBuffer(nil)
+		if _, err := io.Copy(buf, file); err != nil {
+			fmt.Println(err)
+		}
+		if err := file.Close(); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		fmt.Println(file)
-		kind := http.DetectContentType(buff)
-		fmt.Println(kind) // do something based on your detection.
-		if !stringInSlice(kind, allowedKinds) {
-			fmt.Fprintf(w, "Got ya, ivan!\n")
+		kind, err := checkImage(*buf)
+		fmt.Println(kind)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		//create destination file making sure the path is writeable.
@@ -80,12 +79,23 @@ func uploadFileHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		//copy the uploaded file to the destination file
-		if _, err := io.Copy(dst, file); err != nil {
+		if _, err := io.Copy(dst, buf); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 	}
 
+}
+func checkImage(file bytes.Buffer) (string, error) {
+	buff := make([]byte, 512) // docs tell that it take only first 512 bytes into consideration
+	if _, err := file.Read(buff); err != nil {
+		return "", err
+	}
+	kind := http.DetectContentType(buff)
+	if !stringInSlice(kind, allowedKinds) {
+		return kind, fmt.Errorf("Got ya, ivan!\n")
+	}
+	return kind, nil
 }
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 	renderTemplate(w, "index", nil)
@@ -101,8 +111,8 @@ func setupRoutes() {
 }
 
 func main() {
-	setupRoutes()
 	fmt.Println("running on :8080")
+	setupRoutes()
 
 }
 
