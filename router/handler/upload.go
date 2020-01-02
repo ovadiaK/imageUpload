@@ -35,81 +35,60 @@ func UploadFileHandler(w http.ResponseWriter, r *http.Request) {
 	files := m.File["myFile"]
 	success := make([]string, 0, len(files))
 	failed := make([]string, 0, len(files))
-	for i, header := range files {
+
+	for _, header := range files {
+		//go func() {}()
 		if !imageCorrect(header) {
 			failed = append(failed, header.Filename)
 			continue
 		}
 		//for each fileheader, get a handle to the actual file
-		file, err := files[i].Open()
+		file, err := header.Open() //todo replace with header
 		if err != nil {
-			failed = append(failed, header.Filename)
+			fail(failed, header.Filename)
 			continue
 		}
 		fileName := header.Filename
-		f, err := os.OpenFile(filepath.Join(img.IMAGE_FOLDER_TEMP, fileName), os.O_WRONLY|os.O_CREATE, 0666)
+		tempPath := filepath.Join(img.IMAGE_FOLDER_TEMP, fileName)
+		f, err := os.OpenFile(tempPath, os.O_WRONLY|os.O_CREATE, 0666)
 		if err != nil {
-			failed = append(failed, header.Filename)
-			if err := os.Remove(filepath.Join(img.IMAGE_FOLDER_TEMP, fileName)); err != nil {
-				log.Println(err)
-			}
+			fail(failed, fileName, tempPath)
 			continue
 		}
 		defer f.Close()
 		n, err := io.Copy(f, file)
 		if err != nil {
-			failed = append(failed, header.Filename)
-			if err := os.Remove(filepath.Join(img.IMAGE_FOLDER_TEMP, fileName)); err != nil {
-				log.Println(err)
-			}
+			fail(failed, fileName, tempPath)
 			continue
 		}
 		log.Printf("filename: %v %v of %v bytes written/", fileName, n, header.Size)
 		if err := file.Close(); err != nil {
-			failed = append(failed, header.Filename)
-			if err := os.Remove(filepath.Join(img.IMAGE_FOLDER_TEMP, fileName)); err != nil {
-				log.Println(err)
-			}
+			failed = append(failed, header.Filename, tempPath)
 			continue
 		}
 		if header.Header.Get("Content-Type") != "image/jpeg" {
 			if fileName, err = img.Format(fileName); err != nil {
-				failed = append(failed, header.Filename)
-				if err := os.Remove(filepath.Join(img.IMAGE_FOLDER_TEMP, fileName)); err != nil {
-					log.Println(err)
-				}
-				if err := os.Remove(filepath.Join(img.IMAGE_FOLDER_TEMP, header.Filename)); err != nil {
-					log.Println(err)
-				}
+				fail(failed, fileName, filepath.Join(img.IMAGE_FOLDER_TEMP, fileName), filepath.Join(img.IMAGE_FOLDER_TEMP, header.Filename))
 				continue
 			}
-		}
-		fmt.Println(fileName)
-		sizedImage, err := img.Resize(fileName)
-		if err != nil {
-			failed = append(failed, header.Filename)
-			if err := os.Remove(filepath.Join(img.IMAGE_FOLDER_TEMP, fileName)); err != nil {
-				log.Println(err)
-			}
+			tempPath = filepath.Join(img.IMAGE_FOLDER_TEMP, fileName)
 			if err := os.Remove(filepath.Join(img.IMAGE_FOLDER_TEMP, header.Filename)); err != nil {
 				log.Println(err)
 			}
+		}
+		sizedImage, err := img.Resize(fileName)
+		if err != nil {
+			fail(failed, fileName, tempPath)
 			continue
 		}
 		//create destination file making sure the path is writeable.
 		//copy the uploaded file to the destination file
 		err = imaging.Save(sizedImage, filepath.Join(img.IMAGE_FOLDER_PERM, fileName))
 		if err != nil {
-			failed = append(failed, header.Filename)
-			if err := os.Remove(filepath.Join(img.IMAGE_FOLDER_TEMP, fileName)); err != nil {
-				log.Println(err)
-			}
-			if err := os.Remove(filepath.Join(img.IMAGE_FOLDER_TEMP, header.Filename)); err != nil {
-				log.Println(err)
-			}
+			fail(failed, fileName, tempPath)
 			continue
 		}
-		if err := os.Remove(filepath.Join(img.IMAGE_FOLDER_TEMP, header.Filename)); err != nil {
+		if err := os.Remove(tempPath); err != nil {
 			log.Println(err)
 		}
 		success = append(success, header.Filename)
@@ -118,6 +97,21 @@ func UploadFileHandler(w http.ResponseWriter, r *http.Request) {
 
 	renderTemplate(w, "upload", mess)
 }
+
+//func upload(header multipart.FileHeader, success, failed []string) {
+//
+//}
+
+func fail(failed []string, filename string, toDelete ...string) {
+	failed = append(failed, filename)
+	for _, dir := range toDelete {
+		if err := os.Remove(dir); err != nil {
+			log.Println(err)
+		}
+	}
+
+}
+
 func imageCorrect(head *multipart.FileHeader) bool {
 	f, err := head.Open()
 	if err != nil {
