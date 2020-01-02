@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
+	"time"
 )
 
 var allowedKinds = []string{"image/png", "image/jpeg"}
@@ -24,6 +26,7 @@ func UploadFileHandler(w http.ResponseWriter, r *http.Request) {
 
 	//Parse our multipart form, 10 << 20 specifies a maximum
 	//upload of 10 MB files.
+	start := time.Now()
 	if err := r.ParseMultipartForm(10 << 20); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -33,83 +36,96 @@ func UploadFileHandler(w http.ResponseWriter, r *http.Request) {
 	m := r.MultipartForm
 	//get the *fileheaders
 	files := m.File["myFile"]
-	success := make([]string, 0, len(files))
-	failed := make([]string, 0, len(files))
+	success := make(chan string, len(files))
+	failed := make(chan string, len(files))
 
-	for _, header := range files {
-		//go func() {}()
-		if !imageCorrect(header) {
-			failed = append(failed, header.Filename)
-			continue
-		}
-		//for each fileheader, get a handle to the actual file
-		file, err := header.Open() //todo replace with header
-		if err != nil {
-			fail(failed, header.Filename)
-			continue
-		}
-		fileName := header.Filename
-		tempPath := filepath.Join(img.IMAGE_FOLDER_TEMP, fileName)
-		f, err := os.OpenFile(tempPath, os.O_WRONLY|os.O_CREATE, 0666)
-		if err != nil {
-			fail(failed, fileName, tempPath)
-			continue
-		}
-		defer f.Close()
-		n, err := io.Copy(f, file)
-		if err != nil {
-			fail(failed, fileName, tempPath)
-			continue
-		}
-		log.Printf("filename: %v %v of %v bytes written/", fileName, n, header.Size)
-		if err := file.Close(); err != nil {
-			failed = append(failed, header.Filename, tempPath)
-			continue
-		}
-		if header.Header.Get("Content-Type") != "image/jpeg" {
-			if fileName, err = img.Format(fileName); err != nil {
-				fail(failed, fileName, filepath.Join(img.IMAGE_FOLDER_TEMP, fileName), filepath.Join(img.IMAGE_FOLDER_TEMP, header.Filename))
-				continue
-			}
-			tempPath = filepath.Join(img.IMAGE_FOLDER_TEMP, fileName)
-			if err := os.Remove(filepath.Join(img.IMAGE_FOLDER_TEMP, header.Filename)); err != nil {
-				log.Println(err)
-			}
-		}
-		sizedImage, err := img.Resize(fileName)
-		if err != nil {
-			fail(failed, fileName, tempPath)
-			continue
-		}
-		//create destination file making sure the path is writeable.
-		//copy the uploaded file to the destination file
-		err = imaging.Save(sizedImage, filepath.Join(img.IMAGE_FOLDER_PERM, fileName))
-		if err != nil {
-			fail(failed, fileName, tempPath)
-			continue
-		}
-		if err := os.Remove(tempPath); err != nil {
-			log.Println(err)
-		}
-		success = append(success, header.Filename)
+	var wg sync.WaitGroup
+	for _, h := range files {
+		header := h
+		wg.Add(1)
+		go upload(header, success, failed, &wg)
 	}
-	mess := messageUpload{Success: success, Failed: failed}
-
+	wg.Wait()
+	successStrings := make([]string, 0, len(success))
+	resPos := len(success)
+	for i := 0; i < resPos; i++ {
+		successStrings = append(successStrings, <-success)
+	}
+	failedStrings := make([]string, 0, len(failed))
+	resNeg := len(failed)
+	for i := 0; i < resNeg; i++ {
+		failedStrings = append(failedStrings, <-failed)
+	}
+	mess := messageUpload{Success: successStrings, Failed: failedStrings}
+	fmt.Println(time.Since(start))
 	renderTemplate(w, "upload", mess)
 }
 
-//func upload(header multipart.FileHeader, success, failed []string) {
-//
-//}
+func upload(header *multipart.FileHeader, success, failed chan string, wg *sync.WaitGroup) {
+	defer wg.Done()
+	if !imageCorrect(header) {
+		fail(failed, header.Filename)
+		return
+	}
+	//for each fileheader, get a handle to the actual file
+	file, err := header.Open() //todo replace with header
+	if err != nil {
+		fail(failed, header.Filename)
+		return
+	}
+	fileName := header.Filename
+	tempPath := filepath.Join(img.IMAGE_FOLDER_TEMP, fileName)
+	f, err := os.OpenFile(tempPath, os.O_WRONLY|os.O_CREATE, 0666)
+	if err != nil {
+		fail(failed, fileName, tempPath)
+		return
+	}
+	defer f.Close()
+	_, err = io.Copy(f, file)
+	if err != nil {
+		fail(failed, fileName, tempPath)
+		return
+	}
+	//log.Printf("filename: %v %v of %v bytes written/", fileName, n, header.Size)
+	if err := file.Close(); err != nil {
+		fail(failed, header.Filename, tempPath)
+		return
+	}
+	if header.Header.Get("Content-Type") != "image/jpeg" {
+		if fileName, err = img.Format(fileName); err != nil {
+			fail(failed, fileName, filepath.Join(img.IMAGE_FOLDER_TEMP, fileName), filepath.Join(img.IMAGE_FOLDER_TEMP, header.Filename))
+			return
+		}
+		tempPath = filepath.Join(img.IMAGE_FOLDER_TEMP, fileName)
+		if err := os.Remove(filepath.Join(img.IMAGE_FOLDER_TEMP, header.Filename)); err != nil {
+			log.Println(err)
+		}
+	}
+	sizedImage, err := img.Resize(fileName)
+	if err != nil {
+		fail(failed, fileName, tempPath)
+		return
+	}
+	//create destination file making sure the path is writeable.
+	//copy the uploaded file to the destination file
+	err = imaging.Save(sizedImage, filepath.Join(img.IMAGE_FOLDER_PERM, fileName))
+	if err != nil {
+		fail(failed, fileName, tempPath)
+		return
+	}
+	if err := os.Remove(tempPath); err != nil {
+		log.Println(err)
+	}
+	success <- fileName
+}
 
-func fail(failed []string, filename string, toDelete ...string) {
-	failed = append(failed, filename)
+func fail(failed chan string, filename string, toDelete ...string) {
+	failed <- filename
 	for _, dir := range toDelete {
 		if err := os.Remove(dir); err != nil {
 			log.Println(err)
 		}
 	}
-
 }
 
 func imageCorrect(head *multipart.FileHeader) bool {
