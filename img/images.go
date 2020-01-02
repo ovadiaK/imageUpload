@@ -27,13 +27,21 @@ func Resize(fileName string) (*image.NRGBA, error) {
 		return nil, fmt.Errorf("i=nil")
 	}
 	r := i.Bounds()
-
+	if (r.Dx() / r.Dy()) > 1 {
+		dist := (r.Dx() - r.Dy()*2) / 2
+		rec := image.Rect(dist, 0, r.Dx()-dist, r.Dy())
+		i = imaging.Crop(i, rec)
+	}
+	if (r.Dy() / r.Dx()) > 1 {
+		dist := (r.Dy() - r.Dx()*2) / 2
+		rec := image.Rect(0, dist, r.Dx(), r.Dy()-dist)
+		i = imaging.Crop(i, rec)
+	}
 	if r.Dx() < r.Dy() {
 		width = 0
 	} else {
 		height = 0
 	}
-
 	i2 := imaging.Resize(i, width, height, imaging.Lanczos)
 	return i2, nil
 }
