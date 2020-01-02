@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Upload</title>
+</head>
+<body>
+<h1>success</h1>
+<ol>
+    {{range .Success}}
+        <li>
+            {{.}}
+        </li>
+    {{end}}
+</ol>
+<ol>
+    <h1>failed</h1>
+    {{range .Failed}}
+        <li>
+            {{.}}
+        </li>
+    {{end}}
+</ol>
+</body>
+</html>

@@ -4,28 +4,31 @@ import (
 	"fmt"
 	"github.com/disintegration/imaging"
 	"image"
-	"mime/multipart"
+	"image/jpeg"
+	"os"
+	"path/filepath"
+	"strings"
 )
 
-const IMAGE_FOLDER = "temp-images"
+const IMAGE_FOLDER_TEMP = "temp-images"
+const IMAGE_FOLDER_PERM = "perm-images"
 const maxSize = 1400
 
-func Resize(file *multipart.File) (*image.NRGBA, error) {
+func Resize(fileName string) (*image.NRGBA, error) {
 	var (
 		height = maxSize
 		width  = maxSize
 	)
-	conf, format, err := image.DecodeConfig(*file)
+	i, err := imaging.Open(filepath.Join(IMAGE_FOLDER_TEMP, fileName))
 	if err != nil {
 		return nil, err
 	}
-	i, _, err := image.Decode(*file)
-	if err != nil {
-		return nil, err
+	if i == nil {
+		return nil, fmt.Errorf("i=nil")
 	}
-	fmt.Println(format)
+	r := i.Bounds()
 
-	if conf.Height < conf.Width {
+	if r.Dx() < r.Dy() {
 		width = 0
 	} else {
 		height = 0
@@ -33,4 +36,21 @@ func Resize(file *multipart.File) (*image.NRGBA, error) {
 
 	i2 := imaging.Resize(i, width, height, imaging.Lanczos)
 	return i2, nil
+}
+
+func Format(fileName string) (string, error) {
+	src, err := os.Open(filepath.Join(IMAGE_FOLDER_TEMP, fileName))
+	if err != nil {
+		return fileName, err
+	}
+	defer src.Close()
+	i, _, err := image.Decode(src)
+	if err != nil {
+		return "", err
+	}
+	fileName = strings.Join([]string{strings.TrimSuffix(fileName, filepath.Ext(fileName)), "jpg"}, ".")
+	dst, err := os.OpenFile(filepath.Join(IMAGE_FOLDER_TEMP, fileName), os.O_WRONLY|os.O_CREATE, 0666)
+	defer dst.Close()
+	err = jpeg.Encode(dst, i, nil)
+	return fileName, err
 }

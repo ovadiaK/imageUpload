@@ -9,10 +9,16 @@ import (
 	"log"
 	"mime/multipart"
 	"net/http"
+	"os"
 	"path/filepath"
 )
 
 var allowedKinds = []string{"image/png", "image/jpeg"}
+
+type messageUpload struct {
+	Success []string
+	Failed  []string
+}
 
 func UploadFileHandler(w http.ResponseWriter, r *http.Request) {
 
@@ -25,54 +31,116 @@ func UploadFileHandler(w http.ResponseWriter, r *http.Request) {
 
 	//get a ref to the parsed multipart form
 	m := r.MultipartForm
-
 	//get the *fileheaders
 	files := m.File["myFile"]
-	for i, _ := range files {
+	success := make([]string, 0, len(files))
+	failed := make([]string, 0, len(files))
+	for i, header := range files {
+		if !imageCorrect(header) {
+			failed = append(failed, header.Filename)
+			continue
+		}
 		//for each fileheader, get a handle to the actual file
 		file, err := files[i].Open()
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			failed = append(failed, header.Filename)
+			continue
 		}
-
-		format, err := checkImage(&file)
-		fmt.Println(format)
+		fileName := header.Filename
+		f, err := os.OpenFile(filepath.Join(img.IMAGE_FOLDER_TEMP, fileName), os.O_WRONLY|os.O_CREATE, 0666)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			failed = append(failed, header.Filename)
+			if err := os.Remove(filepath.Join(img.IMAGE_FOLDER_TEMP, fileName)); err != nil {
+				log.Println(err)
+			}
+			continue
 		}
-
-		sizedImage, err := img.Resize(&file)
+		defer f.Close()
+		n, err := io.Copy(f, file)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			failed = append(failed, header.Filename)
+			if err := os.Remove(filepath.Join(img.IMAGE_FOLDER_TEMP, fileName)); err != nil {
+				log.Println(err)
+			}
+			continue
+		}
+		log.Printf("filename: %v %v of %v bytes written/", fileName, n, header.Size)
+		if err := file.Close(); err != nil {
+			failed = append(failed, header.Filename)
+			if err := os.Remove(filepath.Join(img.IMAGE_FOLDER_TEMP, fileName)); err != nil {
+				log.Println(err)
+			}
+			continue
+		}
+		if header.Header.Get("Content-Type") != "image/jpeg" {
+			if fileName, err = img.Format(fileName); err != nil {
+				failed = append(failed, header.Filename)
+				if err := os.Remove(filepath.Join(img.IMAGE_FOLDER_TEMP, fileName)); err != nil {
+					log.Println(err)
+				}
+				if err := os.Remove(filepath.Join(img.IMAGE_FOLDER_TEMP, header.Filename)); err != nil {
+					log.Println(err)
+				}
+				continue
+			}
+		}
+		fmt.Println(fileName)
+		sizedImage, err := img.Resize(fileName)
+		if err != nil {
+			failed = append(failed, header.Filename)
+			if err := os.Remove(filepath.Join(img.IMAGE_FOLDER_TEMP, fileName)); err != nil {
+				log.Println(err)
+			}
+			if err := os.Remove(filepath.Join(img.IMAGE_FOLDER_TEMP, header.Filename)); err != nil {
+				log.Println(err)
+			}
+			continue
 		}
 		//create destination file making sure the path is writeable.
 		//copy the uploaded file to the destination file
-		err = imaging.Save(sizedImage, filepath.Join(img.IMAGE_FOLDER, files[i].Filename))
+		err = imaging.Save(sizedImage, filepath.Join(img.IMAGE_FOLDER_PERM, fileName))
 		if err != nil {
-			log.Fatalf("failed to save image: %v", err)
+			failed = append(failed, header.Filename)
+			if err := os.Remove(filepath.Join(img.IMAGE_FOLDER_TEMP, fileName)); err != nil {
+				log.Println(err)
+			}
+			if err := os.Remove(filepath.Join(img.IMAGE_FOLDER_TEMP, header.Filename)); err != nil {
+				log.Println(err)
+			}
+			continue
 		}
-		if err := file.Close(); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+		if err := os.Remove(filepath.Join(img.IMAGE_FOLDER_TEMP, header.Filename)); err != nil {
+			log.Println(err)
 		}
+		success = append(success, header.Filename)
 	}
-	http.Redirect(w, r, "/select", 202)
+	mess := messageUpload{Success: success, Failed: failed}
+
+	renderTemplate(w, "upload", mess)
 }
-func checkImage(file *multipart.File) (string, error) {
+func imageCorrect(head *multipart.FileHeader) bool {
+	f, err := head.Open()
+	if err != nil {
+		log.Println(err)
+		return false
+	}
 	buf := bytes.NewBuffer(nil)
-	if _, err := io.Copy(buf, *file); err != nil {
-		fmt.Println(err)
+	if _, err := io.Copy(buf, f); err != nil {
+		log.Println(err)
+		return false
 	}
 	buff := make([]byte, 512) // docs tell that it take only first 512 bytes into consideration
 	if _, err := buf.Read(buff); err != nil {
-		return "", err
+		log.Println(err)
+		return false
 	}
-	kind := http.DetectContentType(buff)
-	if !stringInSlice(kind, allowedKinds) {
-		return kind, fmt.Errorf("Got ya, ivan!\n")
+	format := http.DetectContentType(buff)
+	if !stringInSlice(format, allowedKinds) {
+		log.Println(format, fmt.Errorf("Got ya, ivan!\n"))
+		return false
 	}
-	return kind, nil
+	if head.Header.Get("Content-Type") != format {
+		log.Printf("formats mismatch: %v %v", head.Header.Get("Content-Type"), format)
+	}
+	return true
 }

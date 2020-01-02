@@ -8,7 +8,7 @@ import (
 )
 
 func Router() {
-	http.Handle("/temp-images/", http.StripPrefix("/temp-images/", http.FileServer(http.Dir(img.IMAGE_FOLDER))))
+	http.Handle("/perm-images/", http.StripPrefix("/perm-images/", http.FileServer(http.Dir(img.IMAGE_FOLDER_PERM))))
 	http.HandleFunc("/", handler.IndexHandler)
 	http.HandleFunc("/upload", handler.UploadFileHandler)
 	http.HandleFunc("/select", handler.Selector)

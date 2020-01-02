@@ -13,7 +13,7 @@ type selectorMessage struct {
 
 func Selector(w http.ResponseWriter, r *http.Request) {
 	mess := selectorMessage{}
-	fis, err := ioutil.ReadDir(img.IMAGE_FOLDER)
+	fis, err := ioutil.ReadDir(img.IMAGE_FOLDER_PERM)
 	if err != nil {
 		fmt.Println(err)
 	}

@@ -24,7 +24,7 @@ func Manipulator(w http.ResponseWriter, r *http.Request) {
 	}
 	name := i[0]
 	mess := messageManipulator{}
-	mess.Img = filepath.Join("..", img.IMAGE_FOLDER, name)
+	mess.Img = filepath.Join("..", img.IMAGE_FOLDER_PERM, name)
 	mess.Title = name
 	renderTemplate(w, "manipulator", mess)
 
