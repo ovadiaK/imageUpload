@@ -3,8 +3,11 @@ package img
 import (
 	"fmt"
 	"github.com/disintegration/imaging"
+	"golang.org/x/image/tiff"
 	"image"
+	"image/gif"
 	"image/jpeg"
+	"image/png"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,13 +15,9 @@ import (
 
 const IMAGE_FOLDER_TEMP = "temp-images"
 const IMAGE_FOLDER_PERM = "perm-images"
-const maxSize = 1400
 
-func Resize(fileName string) (*image.NRGBA, error) {
-	var (
-		height = maxSize
-		width  = maxSize
-	)
+func Resize(fileName string, height, width int) (*image.NRGBA, error) {
+	height, width = 3000, 3000
 	i, err := imaging.Open(filepath.Join(IMAGE_FOLDER_TEMP, fileName))
 	if err != nil {
 		return nil, err
@@ -46,7 +45,7 @@ func Resize(fileName string) (*image.NRGBA, error) {
 	return i2, nil
 }
 
-func Format(fileName string) (string, error) {
+func Format(fileName string, format string) (string, error) {
 	src, err := os.Open(filepath.Join(IMAGE_FOLDER_TEMP, fileName))
 	if err != nil {
 		return fileName, err
@@ -56,9 +55,26 @@ func Format(fileName string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	fileName = strings.Join([]string{strings.TrimSuffix(fileName, filepath.Ext(fileName)), "jpg"}, ".")
+	fileName = strings.Join([]string{strings.TrimSuffix(fileName, filepath.Ext(fileName)), format}, ".")
 	dst, err := os.OpenFile(filepath.Join(IMAGE_FOLDER_TEMP, fileName), os.O_WRONLY|os.O_CREATE, 0666)
 	defer dst.Close()
-	err = jpeg.Encode(dst, i, nil)
+	switch format {
+	case "jpg":
+		{
+			err = jpeg.Encode(dst, i, nil)
+		}
+	case "png":
+		{
+			err = png.Encode(dst, i)
+		}
+	case "tiff":
+		{
+			err = tiff.Encode(dst, i, nil)
+		}
+	case "gif":
+		{
+			err = gif.Encode(dst, i, nil)
+		}
+	}
 	return fileName, err
 }

@@ -11,8 +11,15 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
+)
+
+const (
+	defaultSize = 2000
+	maxSize     = 3000
+	minSize     = 150
 )
 
 var allowedKinds = []string{"image/png", "image/jpeg"}
@@ -31,7 +38,9 @@ func UploadFileHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
+	format := r.FormValue("format")
+	width := sizeValue(r.FormValue("width"))
+	height := sizeValue(r.FormValue("height"))
 	//get a ref to the parsed multipart form
 	m := r.MultipartForm
 	//get the *fileheaders
@@ -43,7 +52,7 @@ func UploadFileHandler(w http.ResponseWriter, r *http.Request) {
 	for _, h := range files {
 		header := h
 		wg.Add(1)
-		go upload(header, success, failed, &wg)
+		go upload(header, format, width, height, success, failed, &wg)
 	}
 	wg.Wait()
 	successStrings := make([]string, 0, len(success))
@@ -61,14 +70,28 @@ func UploadFileHandler(w http.ResponseWriter, r *http.Request) {
 	renderTemplate(w, "upload", mess)
 }
 
-func upload(header *multipart.FileHeader, success, failed chan string, wg *sync.WaitGroup) {
+func sizeValue(str string) int {
+	n, err := strconv.Atoi(str)
+	if err != nil {
+		return defaultSize
+	}
+	if n > maxSize {
+		return maxSize
+	}
+	if n < minSize {
+		return minSize
+	}
+	return n
+}
+
+func upload(header *multipart.FileHeader, format string, height, width int, success, failed chan string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	if !imageCorrect(header) {
 		fail(failed, header.Filename)
 		return
 	}
 	//for each fileheader, get a handle to the actual file
-	file, err := header.Open() //todo replace with header
+	file, err := header.Open()
 	if err != nil {
 		fail(failed, header.Filename)
 		return
@@ -91,17 +114,15 @@ func upload(header *multipart.FileHeader, success, failed chan string, wg *sync.
 		fail(failed, header.Filename, tempPath)
 		return
 	}
-	if header.Header.Get("Content-Type") != "image/jpeg" {
-		if fileName, err = img.Format(fileName); err != nil {
-			fail(failed, fileName, filepath.Join(img.IMAGE_FOLDER_TEMP, fileName), filepath.Join(img.IMAGE_FOLDER_TEMP, header.Filename))
-			return
-		}
-		tempPath = filepath.Join(img.IMAGE_FOLDER_TEMP, fileName)
-		if err := os.Remove(filepath.Join(img.IMAGE_FOLDER_TEMP, header.Filename)); err != nil {
-			log.Println(err)
-		}
+	if fileName, err = img.Format(fileName, format); err != nil {
+		fail(failed, fileName, filepath.Join(img.IMAGE_FOLDER_TEMP, fileName), filepath.Join(img.IMAGE_FOLDER_TEMP, header.Filename))
+		return
 	}
-	sizedImage, err := img.Resize(fileName)
+	tempPath = filepath.Join(img.IMAGE_FOLDER_TEMP, fileName)
+	if err := os.Remove(filepath.Join(img.IMAGE_FOLDER_TEMP, header.Filename)); err != nil {
+		log.Println(err)
+	}
+	sizedImage, err := img.Resize(fileName, height, width)
 	if err != nil {
 		fail(failed, fileName, tempPath)
 		return

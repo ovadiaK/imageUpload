@@ -3,25 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <title>Upload</title>
+    <link rel="stylesheet" href="../assets/layout.css">
 </head>
 <body>
 {{template "navbar"}}
-
-<h1>success</h1>
-<ol>
-    {{range .Success}}
-        <li>
-            {{.}}
-        </li>
-    {{end}}
-</ol>
-<ol>
-    <h1>failed</h1>
-    {{range .Failed}}
-        <li>
-            {{.}}
-        </li>
-    {{end}}
-</ol>
+<main>
+    <h2>success</h2>
+    <ol>
+        {{range .Success}}
+            <li>
+                {{.}}
+            </li>
+        {{end}}
+    </ol>
+    <ol>
+        <h2>failed</h2>
+        {{range .Failed}}
+            <li>
+                {{.}}
+            </li>
+        {{end}}
+    </ol>
+</main>
+<a href="/select"> select </a>
 </body>
 </html>

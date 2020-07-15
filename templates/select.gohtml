@@ -3,19 +3,21 @@
 <head>
     <meta charset="UTF-8"/>
     <title>Select</title>
+    <link rel="stylesheet" href="../assets/layout.css">
 </head>
 <body>
 {{template "navbar"}}
-
-<ul>
-    {{range .Images}}
-        <li>
-            <form action="/manipulate/">
-                <input type="submit" value={{.}} name="img">
-            </form>
-        </li>
-    {{end}}
-</ul>
-
+<h1>Select Image to Manipulate</h1>
+<main>
+    <ul>
+        {{range .Images}}
+            <li>
+                <form action="/manipulate/">
+                    <input type="submit" value={{.}} name="img">
+                </form>
+            </li>
+        {{end}}
+    </ul>
+</main>
 </body>
 </html>

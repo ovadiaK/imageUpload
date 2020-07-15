@@ -4,18 +4,29 @@
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <meta http-equiv="X-UA-Compatible" content="ie=edge"/>
-    <title>Document</title>
+    <title>Welcome</title>
+    <link rel="stylesheet" href="../assets/layout.css">
 </head>
 <body>
 {{template "navbar"}}
-
-<form
-        enctype="multipart/form-data"
-        action="http://localhost:8080/upload"
-        method="post"
->
-    <input type="file" accept="image/*" name="myFile" multiple/>
-    <input type="submit" value="upload"/>
-</form>
+<h1>Welcome to Image-Resizer</h1>
+<main>
+    <form
+            enctype="multipart/form-data"
+            action="http://localhost:8080/upload"
+            method="post"
+    >
+        <input type="file" accept="image/*" name="myFile" multiple/>
+        <label>Height:<input type="number" name="height" max="3000" min="150"></label>
+        <label>Width: <input type="number" name="width" max="3000" min="150"></label>
+        <div>
+            <label>jpg<input type="radio" name="format" value="jpg" checked></label>
+            <label>png <input type="radio" name="format" value="png"></label>
+            <label>tiff <input type="radio" name="format" value="tiff"></label>
+            <label>gif <input type="radio" name="format" value="gif"></label>
+        </div>
+        <input type="submit" value="upload"/>
+    </form>
+</main>
 </body>
 </html>
