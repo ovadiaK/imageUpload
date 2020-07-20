@@ -16,8 +16,8 @@ import (
 const IMAGE_FOLDER_TEMP = "temp-images"
 const IMAGE_FOLDER_PERM = "perm-images"
 
-func Resize(fileName string, height, width int) (*image.NRGBA, error) {
-	height, width = 3000, 3000
+func Resize(fileName string, size int, makeRectangle bool) (*image.NRGBA, error) {
+	width, height := size, size
 	i, err := imaging.Open(filepath.Join(IMAGE_FOLDER_TEMP, fileName))
 	if err != nil {
 		return nil, err
@@ -26,15 +26,17 @@ func Resize(fileName string, height, width int) (*image.NRGBA, error) {
 		return nil, fmt.Errorf("i=nil")
 	}
 	r := i.Bounds()
-	if (r.Dx() / r.Dy()) > 1 {
-		dist := (r.Dx() - r.Dy()*2) / 2
-		rec := image.Rect(dist, 0, r.Dx()-dist, r.Dy())
-		i = imaging.Crop(i, rec)
-	}
-	if (r.Dy() / r.Dx()) > 1 {
-		dist := (r.Dy() - r.Dx()*2) / 2
-		rec := image.Rect(0, dist, r.Dx(), r.Dy()-dist)
-		i = imaging.Crop(i, rec)
+	if makeRectangle {
+		if (r.Dx() / r.Dy()) > 1 {
+			dist := (r.Dx() - r.Dy()*2) / 2
+			rec := image.Rect(dist, 0, r.Dx()-dist, r.Dy())
+			i = imaging.Crop(i, rec)
+		}
+		if (r.Dy() / r.Dx()) > 1 {
+			dist := (r.Dy() - r.Dx()*2) / 2
+			rec := image.Rect(0, dist, r.Dx(), r.Dy()-dist)
+			i = imaging.Crop(i, rec)
+		}
 	}
 	if r.Dx() < r.Dy() {
 		width = 0

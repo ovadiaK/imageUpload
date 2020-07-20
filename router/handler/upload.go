@@ -17,9 +17,9 @@ import (
 )
 
 const (
-	defaultSize = 2000
+	defaultSize = 1000
 	maxSize     = 3000
-	minSize     = 150
+	minSize     = 50
 )
 
 var allowedKinds = []string{"image/png", "image/jpeg"}
@@ -39,8 +39,8 @@ func UploadFileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	format := r.FormValue("format")
-	width := sizeValue(r.FormValue("width"))
-	height := sizeValue(r.FormValue("height"))
+	size := sizeValue(r.FormValue("size"))
+	makeRectangle := boolValue(r.FormValue("makeRectangle"))
 	//get a ref to the parsed multipart form
 	m := r.MultipartForm
 	//get the *fileheaders
@@ -52,7 +52,7 @@ func UploadFileHandler(w http.ResponseWriter, r *http.Request) {
 	for _, h := range files {
 		header := h
 		wg.Add(1)
-		go upload(header, format, width, height, success, failed, &wg)
+		go upload(header, format, size, makeRectangle, success, failed, &wg)
 	}
 	wg.Wait()
 	successStrings := make([]string, 0, len(success))
@@ -83,8 +83,15 @@ func sizeValue(str string) int {
 	}
 	return n
 }
+func boolValue(str string) bool {
+	fmt.Println("boolValue:", str)
+	if str == "true" {
+		return true
+	}
+	return false
+}
 
-func upload(header *multipart.FileHeader, format string, height, width int, success, failed chan string, wg *sync.WaitGroup) {
+func upload(header *multipart.FileHeader, format string, size int, makeRectangle bool, success, failed chan string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	if !imageCorrect(header) {
 		fail(failed, header.Filename)
@@ -122,7 +129,7 @@ func upload(header *multipart.FileHeader, format string, height, width int, succ
 	if err := os.Remove(filepath.Join(img.IMAGE_FOLDER_TEMP, header.Filename)); err != nil {
 		log.Println(err)
 	}
-	sizedImage, err := img.Resize(fileName, height, width)
+	sizedImage, err := img.Resize(fileName, size, makeRectangle)
 	if err != nil {
 		fail(failed, fileName, tempPath)
 		return
