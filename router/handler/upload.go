@@ -22,7 +22,7 @@ const (
 	minSize     = 50
 )
 
-var allowedKinds = []string{"image/png", "image/jpeg"}
+var allowedKinds = []string{"image/png", "image/jpeg", "image/tiff", "image/gif"}
 
 type messageUpload struct {
 	Success []string
@@ -94,12 +94,14 @@ func boolValue(str string) bool {
 func upload(header *multipart.FileHeader, format string, size int, makeRectangle bool, success, failed chan string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	if !imageCorrect(header) {
+		fmt.Println("image not correct")
 		fail(failed, header.Filename)
 		return
 	}
 	//for each fileheader, get a handle to the actual file
 	file, err := header.Open()
 	if err != nil {
+		fmt.Println("open header:", err)
 		fail(failed, header.Filename)
 		return
 	}
@@ -107,30 +109,32 @@ func upload(header *multipart.FileHeader, format string, size int, makeRectangle
 	tempPath := filepath.Join(img.IMAGE_FOLDER_TEMP, fileName)
 	f, err := os.OpenFile(tempPath, os.O_WRONLY|os.O_CREATE, 0666)
 	if err != nil {
+		fmt.Println("open file:", err)
 		fail(failed, fileName, tempPath)
 		return
 	}
 	defer f.Close()
 	_, err = io.Copy(f, file)
 	if err != nil {
+		fmt.Println("copy file:", err)
 		fail(failed, fileName, tempPath)
 		return
 	}
-	//log.Printf("filename: %v %v of %v bytes written/", fileName, n, header.Size)
 	if err := file.Close(); err != nil {
+		fmt.Println("close file:", err)
 		fail(failed, header.Filename, tempPath)
 		return
 	}
-	if fileName, err = img.Format(fileName, format); err != nil {
-		fail(failed, fileName, filepath.Join(img.IMAGE_FOLDER_TEMP, fileName), filepath.Join(img.IMAGE_FOLDER_TEMP, header.Filename))
-		return
+	if !correctFormat(fileName, format) {
+		if fileName, err = img.Format(fileName, format); err != nil {
+			fail(failed, fileName, filepath.Join(img.IMAGE_FOLDER_TEMP, fileName))
+			return
+		}
 	}
 	tempPath = filepath.Join(img.IMAGE_FOLDER_TEMP, fileName)
-	if err := os.Remove(filepath.Join(img.IMAGE_FOLDER_TEMP, header.Filename)); err != nil {
-		log.Println(err)
-	}
 	sizedImage, err := img.Resize(fileName, size, makeRectangle)
 	if err != nil {
+		fmt.Println("resize:", err)
 		fail(failed, fileName, tempPath)
 		return
 	}
@@ -138,6 +142,7 @@ func upload(header *multipart.FileHeader, format string, size int, makeRectangle
 	//copy the uploaded file to the destination file
 	err = imaging.Save(sizedImage, filepath.Join(img.IMAGE_FOLDER_PERM, fileName))
 	if err != nil {
+		fmt.Println("save image:", err)
 		fail(failed, fileName, tempPath)
 		return
 	}
@@ -181,4 +186,13 @@ func imageCorrect(head *multipart.FileHeader) bool {
 		log.Printf("formats mismatch: %v %v", head.Header.Get("Content-Type"), format)
 	}
 	return true
+}
+func correctFormat(fileName, requestedFormat string) bool {
+	currentFormat := filepath.Ext(fileName)
+	fmt.Println(currentFormat, requestedFormat)
+	if currentFormat[1:] == requestedFormat {
+		fmt.Println(currentFormat[1:], requestedFormat)
+		return true
+	}
+	return false
 }

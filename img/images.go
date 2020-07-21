@@ -58,6 +58,7 @@ func Format(fileName string, format string) (string, error) {
 		return "", err
 	}
 	fileName = strings.Join([]string{strings.TrimSuffix(fileName, filepath.Ext(fileName)), format}, ".")
+	fmt.Println("inside Format:", fileName)
 	dst, err := os.OpenFile(filepath.Join(IMAGE_FOLDER_TEMP, fileName), os.O_WRONLY|os.O_CREATE, 0666)
 	defer dst.Close()
 	switch format {
