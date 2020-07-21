@@ -6,6 +6,7 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge"/>
     <title>Welcome</title>
     <link rel="stylesheet" href="../assets/layout.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 </head>
 <body>
 {{template "navbar"}}
@@ -16,16 +17,31 @@
             action="http://localhost:8080/upload"
             method="post"
     >
-        <input type="file" accept="image/*" name="myFile" multiple/>
-        <label>Longest Side:<input type="number" name="size" max="3000" min="50"></label>
-        <label><input type="checkbox" name="makeRectangle"></label>
-        <div>
-            <label>jpg<input type="radio" name="format" value="jpg" checked></label>
-            <label>png <input type="radio" name="format" value="png"></label>
-            <label>tiff <input type="radio" name="format" value="tiff"></label>
-            <label>gif <input type="radio" name="format" value="gif"></label>
+        <div class="flex-column spaced">
+            <label for="file-input" class="custom-file-upload"><i class="fa fa-folder-open"></i>select files
+            </label><input id="file-input"
+                           type="file"
+                           accept="image/*"
+                           name="myFile"
+                           multiple/>
+            <label>Longest Side:<input type="number" name="size" max="3000" min="50" value="1000"></label>
+            <label><input type="checkbox" name="makeRectangle">cut off long sides</label>
+            <div class="flex-row">
+                <input id="jpg-format" class="format" type="radio"
+                       name="format"
+                       value="jpg" checked><label for="jpg-format" class="format"> jpg </label>
+                <input id="png-format" class="format" type="radio"
+                       name="format"
+                       value="png"> <label for="png-format" class="format"> png </label>
+                <input id="tiff-format" class="format"
+                       type="radio" name="format"
+                       value="tiff"><label for="tiff-format" class="format"> tiff </label>
+                <input id="gif-format" class="format" type="radio"
+                       name="format"
+                       value="gif"><label for="gif-format" class="format"> gif </label>
+            </div>
+            <button type="submit"><i class="fa fa-cloud-upload"></i><br>upload and resize</button>
         </div>
-        <input type="submit" value="upload"/>
     </form>
 </main>
 </body>

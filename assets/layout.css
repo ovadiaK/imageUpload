@@ -1,11 +1,97 @@
+:root {
+    --strong-color: blue;
+    --weak-color: lightblue;
+    --focus-color: gold;
+    font-size: 25px;
+}
+
+body {
+    text-align: center;
+    max-width: fit-content;
+    margin: auto;
+    padding: 0.6em;
+}
+
+main {
+    border: 1em solid var(--strong-color);
+    border-radius: 20%;
+    background-color: var(--weak-color);
+}
+
+.spaced {
+    padding: 0.3em;
+}
+
+.spaced > * {
+    padding: inherit;
+
+}
+
 .flex-row {
     display: flex;
-    flex-direction: row;
-    flex-flow: wrap;
+    flex-flow: row wrap;
     justify-content: center;
     align-items: center;
 }
 
 .flex-row > * {
     flex: 1 1;
+}
+
+.flex-column {
+    display: flex;
+    flex-flow: column wrap;
+    justify-content: center;
+    align-items: center;
+}
+
+.flex-column > * {
+    flex: 1 1;
+}
+
+#file-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+}
+
+.custom-file-upload {
+    border: 0.1rem solid #ccc;
+    display: inline-block;
+    padding: 0.6rem 1.2rem;
+    cursor: pointer;
+}
+
+/* ------------------------------------ */
+
+label.format {
+    height: 40px;
+    width: 60px;
+    display: inline-block;
+    margin:0.4rem;
+}
+
+input.format:checked + label.format {
+    border-radius: 20%;
+    background:linear-gradient(298deg,var(--weak-color),var(--strong-color))
+}
+input.format:not(checked) + label.format{
+    border-radius: 20%;
+    background: white;
+}
+
+input.format {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
 }
