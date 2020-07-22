@@ -85,7 +85,7 @@ func sizeValue(str string) int {
 }
 func boolValue(str string) bool {
 	fmt.Println("boolValue:", str)
-	if str == "true" {
+	if str == "true" || str == "on" {
 		return true
 	}
 	return false

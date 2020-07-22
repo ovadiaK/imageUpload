@@ -78,6 +78,8 @@ func Format(fileName string, format string) (string, error) {
 		{
 			err = gif.Encode(dst, i, nil)
 		}
+	default:
+		return "", fmt.Errorf("wrong format")
 	}
 	return fileName, err
 }
