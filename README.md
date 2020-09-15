@@ -1,5 +1,8 @@
 # imageUpload
-uploading images in golang
+uploading, resizing and changing formats of images in go.
+
+
+
 
 based on
 https://tutorialedge.net/golang/go-file-upload-tutorial/

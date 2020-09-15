@@ -179,7 +179,7 @@ func imageCorrect(head *multipart.FileHeader) bool {
 	}
 	format := http.DetectContentType(buff)
 	if !stringInSlice(format, allowedKinds) {
-		log.Println(format, fmt.Errorf("Got ya, ivan!\n"))
+		log.Println(format, fmt.Errorf("format not allowed"))
 		return false
 	}
 	if head.Header.Get("Content-Type") != format {
@@ -189,7 +189,7 @@ func imageCorrect(head *multipart.FileHeader) bool {
 }
 func correctFormat(fileName, requestedFormat string) bool {
 	currentFormat := filepath.Ext(fileName)
-	fmt.Println(currentFormat, requestedFormat)
+	fmt.Println("current:", currentFormat, "request:", requestedFormat)
 	if currentFormat[1:] == requestedFormat {
 		fmt.Println(currentFormat[1:], requestedFormat)
 		return true

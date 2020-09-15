@@ -53,30 +53,29 @@ func Format(fileName string, format string) (string, error) {
 		return fileName, err
 	}
 	defer src.Close()
-	i, _, err := image.Decode(src)
+	decodedImageData, _, err := image.Decode(src)
 	if err != nil {
 		return "", err
 	}
 	fileName = strings.Join([]string{strings.TrimSuffix(fileName, filepath.Ext(fileName)), format}, ".")
-	fmt.Println("inside Format:", fileName)
 	dst, err := os.OpenFile(filepath.Join(IMAGE_FOLDER_TEMP, fileName), os.O_WRONLY|os.O_CREATE, 0666)
 	defer dst.Close()
 	switch format {
 	case "jpg":
 		{
-			err = jpeg.Encode(dst, i, nil)
+			err = jpeg.Encode(dst, decodedImageData, nil)
 		}
 	case "png":
 		{
-			err = png.Encode(dst, i)
+			err = png.Encode(dst, decodedImageData)
 		}
 	case "tiff":
 		{
-			err = tiff.Encode(dst, i, nil)
+			err = tiff.Encode(dst, decodedImageData, nil)
 		}
 	case "gif":
 		{
-			err = gif.Encode(dst, i, nil)
+			err = gif.Encode(dst, decodedImageData, nil)
 		}
 	default:
 		return "", fmt.Errorf("wrong format")
